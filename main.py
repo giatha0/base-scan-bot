@@ -215,7 +215,10 @@ def main():
                     # Tạo liên kết cho Tx hash: liên kết đến Basescan
                     tx_link = f"[Tx hash](https://basescan.org/tx/{current_hash})"
                     
-                    # Tạo dòng liên kết cho token (TokenTx | Chart | X | Buy on Matcha) nếu token_contract tồn tại
+                    # Dùng backticks để người dùng có thể copy contract
+                    contract_text = f"`{token_contract}`" if token_contract else "`Không tìm thấy`"
+                    
+                    # Tạo dòng liên kết: TokenTx | Chart | X | Buy on Matcha
                     token_links = ""
                     if token_contract:
                         token_links = (
@@ -224,9 +227,14 @@ def main():
                             f"[X](https://x.com/search?q={token_contract}) | "
                             f"[Buy on Matcha](https://matcha.xyz/tokens/base/eth/select?buyChain=8453&buyAddress={token_contract}&sellAmount=0.1)"
                         )
-                    
-                    # Dùng backticks để người dùng có thể copy contract
-                    contract_text = f"`{token_contract}`" if token_contract else "`Không tìm thấy`"
+
+                    # Tạo dòng liên kết: Buy on Sigma | Buy on Banana
+                    sigma_banana_line = ""
+                    if token_contract:
+                        sigma_banana_line = (
+                            f"[Buy on Sigma](https://t.me/Sigma_buyBot?start=x915292947-{token_contract}) | "
+                            f"[Buy on Banana](https://t.me/BananaGunSniper_bot?start=snp_jackyt_{token_contract})"
+                        )
                     
                     log_message = (
                         "==========================================\n"
@@ -234,7 +242,8 @@ def main():
                         f"castHash: {cast_hash}\n"
                         f"Erc20 Contract: {contract_text}\n"
                         f"Ticket: {token_name if token_name else 'Không lấy được tên'}\n"
-                        f"{token_links}"
+                        f"{token_links}\n"
+                        f"{sigma_banana_line}"
                     )
                     logging.info(log_message)
                     
