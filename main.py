@@ -7,7 +7,6 @@ import datetime
 from web3 import Web3
 from web3._utils.events import get_event_data  # Dùng để decode log sự kiện
 
-# Cấu hình logging (in thông báo để theo dõi, có in cả thời gian)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 # Đọc biến môi trường
@@ -22,7 +21,6 @@ if (WALLET_ADDRESS is None or RPC_URL is None or
     logging.error("Bạn cần thiết lập WALLET_ADDRESS, RPC_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID!")
     exit(1)
 
-# Số lần lỗi RPC tối đa
 MAX_RPC_FAILS = 10
 rpc_fail_count = 0
 
@@ -33,7 +31,8 @@ def send_telegram_message(message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": message
+        "text": message,
+        "parse_mode": "Markdown"  # Sử dụng Markdown để tạo liên kết
     }
     try:
         resp = requests.post(url, data=payload, timeout=5)
@@ -186,7 +185,7 @@ def get_token_name(token_address, rpc_url):
 # Main loop
 ########################
 def main():
-    # Gửi tin nhắn Telegram thông báo ứng dụng đã khởi chạy
+    # Gửi tin nhắn Telegram thông báo khởi chạy
     start_message = f"[Railway Start]\nỨng dụng đã khởi chạy tại: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     send_telegram_message(start_message)
     
@@ -206,19 +205,32 @@ def main():
                     if decoded and "castHash" in decoded:
                         cast_hash = decoded["castHash"]
                 
-                # Chỉ xử lý và gửi thông báo nếu castHash đúng bằng "bankr deployment"
+                # Chỉ xử lý nếu castHash == "bankr deployment"
                 if cast_hash == "bankr deployment":
                     token_contract = get_erc20_transfer(current_hash, RPC_URL)
                     token_name = None
                     if token_contract:
                         token_name = get_token_name(token_contract, RPC_URL)
                     
+                    # Tạo liên kết cho Tx hash: liên kết đến Basescan
+                    tx_link = f"[Tx hash](https://basescan.org/tx/{current_hash})"
+                    
+                    # Tạo dòng liên kết cho token (TokenTx | Chart | X) nếu token_contract tồn tại
+                    token_links = ""
+                    if token_contract:
+                        token_links = (
+                            f"[TokenTx](https://basescan.org/token/{token_contract}) | "
+                            f"[Chart](https://dexscreener.com/base/{token_contract}) | "
+                            f"[X](https://x.com/search?q={token_contract})"
+                        )
+                    
                     log_message = (
                         "==========================================\n"
-                        f"Tx hash: {current_hash}\n"
+                        f"{tx_link}\n"
                         f"castHash: {cast_hash}\n"
                         f"Erc20 Contract: {token_contract if token_contract else 'Không tìm thấy'}\n"
-                        f"Ticket: {token_name if token_name else 'Không lấy được tên'}"
+                        f"Ticket: {token_name if token_name else 'Không lấy được tên'}\n"
+                        f"{token_links}"
                     )
                     logging.info(log_message)
                     
