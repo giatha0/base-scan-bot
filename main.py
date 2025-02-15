@@ -32,7 +32,7 @@ def send_telegram_message(message: str):
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
-        "parse_mode": "Markdown"  # Sử dụng Markdown để tạo liên kết
+        "parse_mode": "Markdown"  # Sử dụng Markdown để tạo liên kết và code block
     }
     try:
         resp = requests.post(url, data=payload, timeout=5)
@@ -224,11 +224,14 @@ def main():
                             f"[X](https://x.com/search?q={token_contract})"
                         )
                     
+                    # Dùng backticks để người dùng có thể copy contract
+                    contract_text = f"`{token_contract}`" if token_contract else "`Không tìm thấy`"
+                    
                     log_message = (
                         "==========================================\n"
                         f"{tx_link}\n"
                         f"castHash: {cast_hash}\n"
-                        f"Erc20 Contract: {token_contract if token_contract else 'Không tìm thấy'}\n"
+                        f"Erc20 Contract: {contract_text}\n"
                         f"Ticket: {token_name if token_name else 'Không lấy được tên'}\n"
                         f"{token_links}"
                     )
