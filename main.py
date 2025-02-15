@@ -17,15 +17,12 @@ RPC_URL = os.environ.get("RPC_URL")  # Ví dụ: https://base-mainnet.g.alchemy.
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# Kiểm tra biến môi trường bắt buộc
-if (WALLET_ADDRESS is None or 
-    RPC_URL is None or 
-    TELEGRAM_BOT_TOKEN is None or 
-    TELEGRAM_CHAT_ID is None):
+if (WALLET_ADDRESS is None or RPC_URL is None or 
+    TELEGRAM_BOT_TOKEN is None or TELEGRAM_CHAT_ID is None):
     logging.error("Bạn cần thiết lập WALLET_ADDRESS, RPC_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID!")
     exit(1)
 
-# Giới hạn số lần lỗi RPC
+# Số lần lỗi RPC tối đa
 MAX_RPC_FAILS = 10
 rpc_fail_count = 0
 
@@ -33,9 +30,6 @@ rpc_fail_count = 0
 # Hàm gửi thông báo Telegram
 ########################
 def send_telegram_message(message: str):
-    """
-    Gửi tin nhắn đến TELEGRAM_CHAT_ID thông qua Bot token.
-    """
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -49,7 +43,7 @@ def send_telegram_message(message: str):
         logging.error(f"Lỗi khi gửi thông báo Telegram: {e}")
 
 ########################
-# ABI và hàm decode input
+# ABI cho hàm deployToken (để decode input data)
 ########################
 deployToken_abi = [
     {
@@ -86,7 +80,7 @@ deployToken_abi = [
     }
 ]
 
-w3 = Web3()
+w3 = Web3()  # Dùng để decode input data (không cần provider)
 contract = w3.eth.contract(abi=deployToken_abi)
 
 def decode_input_data_abi(input_hex):
@@ -124,7 +118,7 @@ def get_latest_transaction():
     return None
 
 ########################
-# Lấy ERC-20 Transfer
+# Lấy thông tin ERC-20 Transfer
 ########################
 transfer_event_abi = {
     "anonymous": False,
@@ -150,7 +144,6 @@ def get_erc20_transfer(tx_hash, rpc_url):
             logging.error("RPC_URL lỗi quá nhiều lần. Dừng chương trình.")
             exit(1)
         return None
-    
     for log in receipt.logs:
         if log.topics and log.topics[0].hex() == TRANSFER_EVENT_SIG:
             try:
@@ -193,6 +186,10 @@ def get_token_name(token_address, rpc_url):
 # Main loop
 ########################
 def main():
+    # Gửi tin nhắn Telegram thông báo ứng dụng đã khởi chạy
+    start_message = f"[Railway Start]\nỨng dụng đã khởi chạy tại: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    send_telegram_message(start_message)
+    
     last_tx_hash = None
     while True:
         current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -209,32 +206,24 @@ def main():
                     if decoded and "castHash" in decoded:
                         cast_hash = decoded["castHash"]
                 
-                # Chỉ gửi thông báo và in log nếu castHash == "bankr deployment"
+                # Chỉ xử lý và gửi thông báo nếu castHash đúng bằng "bankr deployment"
                 if cast_hash == "bankr deployment":
                     token_contract = get_erc20_transfer(current_hash, RPC_URL)
                     token_name = None
                     if token_contract:
                         token_name = get_token_name(token_contract, RPC_URL)
                     
-                    # In log
-                    logging.info("==========================================")
-                    logging.info(f"Tx hash: {current_hash}")
-                    logging.info(f"castHash: {cast_hash}")
-                    if token_contract:
-                        logging.info(f"Erc20 Contract: {token_contract}")
-                        logging.info(f"Ticket: {token_name if token_name else 'Không lấy được tên'}")
-                    else:
-                        logging.info("Contract: Không tìm thấy sự kiện ERC-20 Transfer")
-
-                    # Gửi thông báo Telegram
-                    message = (
-                        f"[BANKR DEPLOYMENT]\n"
+                    log_message = (
+                        "==========================================\n"
                         f"Tx hash: {current_hash}\n"
-                        f"ERC20 Contract: {token_contract}\n"
-                        f"Ticket: {token_name if token_name else 'N/A'}\n"
-                        f"castHash: {cast_hash}"
+                        f"castHash: {cast_hash}\n"
+                        f"Erc20 Contract: {token_contract if token_contract else 'Không tìm thấy'}\n"
+                        f"Ticket: {token_name if token_name else 'Không lấy được tên'}"
                     )
-                    send_telegram_message(message)
+                    logging.info(log_message)
+                    
+                    # Gửi thông báo Telegram
+                    send_telegram_message(f"[BANKR DEPLOYMENT]\n{log_message}")
                 else:
                     logging.info("Không phải bankr deployment, bỏ qua giao dịch này.")
                 
