@@ -199,14 +199,20 @@ def main():
             current_hash = tx.get("hash")
             if current_hash != last_tx_hash:
                 input_data_hex = tx.get("input", "")
-                cast_hash = None
+                preSaleConfig = None
                 if input_data_hex and input_data_hex != "0x":
-                    decoded = decode_input_data_abi(input_data_hex)
-                    if decoded and "castHash" in decoded:
-                        cast_hash = decoded["castHash"]
+                    preSaleConfig = decode_input_data_abi(input_data_hex)
+                # Kiểm tra nếu trường fid == 1668 (chuyển đổi sang int nếu cần)
+                process_tx = False
+                if preSaleConfig and "fid" in preSaleConfig:
+                    try:
+                        # So sánh với 1668 dưới dạng số nguyên
+                        if int(preSaleConfig["fid"]) == 1668:
+                            process_tx = True
+                    except Exception as e:
+                        logging.error(f"Lỗi khi so sánh fid: {e}")
                 
-                # Chỉ xử lý nếu castHash == "bankr deployment"
-                if cast_hash == "bankr deployment":
+                if process_tx:
                     token_contract = get_erc20_transfer(current_hash, RPC_URL)
                     token_name = None
                     if token_contract:
@@ -227,7 +233,7 @@ def main():
                             f"[X](https://x.com/search?q={token_contract}) | "
                             f"[Buy on Matcha](https://matcha.xyz/tokens/base/eth/select?buyChain=8453&buyAddress={token_contract}&sellAmount=0.1)"
                         )
-
+                    
                     # Tạo dòng liên kết: Buy on Sigma | Buy on Banana
                     sigma_banana_line = ""
                     if token_contract:
@@ -239,7 +245,7 @@ def main():
                     log_message = (
                         "==========================================\n"
                         f"{tx_link}\n"
-                        f"castHash: {cast_hash}\n"
+                        f"castHash: {preSaleConfig['castHash']}\n"
                         f"Erc20 Contract: {contract_text}\n"
                         f"Ticket: {token_name if token_name else 'Không lấy được tên'}\n"
                         f"{token_links}\n"
@@ -248,9 +254,9 @@ def main():
                     logging.info(log_message)
                     
                     # Gửi thông báo Telegram
-                    send_telegram_message(f"[BANKR DEPLOYMENT]\n{log_message}")
+                    send_telegram_message(f"[DEPLOYMENT]\n{log_message}")
                 else:
-                    logging.info("Không phải bankr deployment, bỏ qua giao dịch này.")
+                    logging.info("Giao dịch không có fid = 1668, bỏ qua.")
                 
                 last_tx_hash = current_hash
             else:
