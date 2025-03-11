@@ -231,7 +231,7 @@ def main():
                         token_links = (
                             f"[TokenTx](https://basescan.org/token/{token_contract}) | "
                             f"[Chart](https://dexscreener.com/base/{token_contract}) | "
-                            f"[X](https://x.com/search?q={token_contract}) | "
+                            f"[XXXXXX](https://x.com/search?q={token_contract}) | "
                             f"[Buy on Matcha](https://matcha.xyz/tokens/base/eth/select?buyChain=8453&buyAddress={token_contract}&sellAmount=0.1)"
                         )
                     sigma_banana_line = ""
