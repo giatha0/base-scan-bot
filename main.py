@@ -12,38 +12,39 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 # Đọc biến môi trường
 WALLET_ADDRESS = os.environ.get("WALLET_ADDRESS")
 BASESCAN_API_KEY = os.environ.get("BASESCAN_API_KEY")  # Có thể bỏ qua nếu không cần
-RPC_URL = os.environ.get("RPC_URL")  # Ví dụ: https://base-mainnet.g.alchemy.com/v2/...
+RPC_URL = os.environ.get("RPC_URL")  # Ví dụ: https://base-mainnet.g.alchemy.com/v2/YourKey
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+TELEGRAM_CHAT_ID_FID = os.environ.get("TELEGRAM_CHAT_ID_FID")
+TELEGRAM_CHAT_ID_BANKR = os.environ.get("TELEGRAM_CHAT_ID_BANKR")
 
-if (WALLET_ADDRESS is None or RPC_URL is None or 
-    TELEGRAM_BOT_TOKEN is None or TELEGRAM_CHAT_ID is None):
-    logging.error("Bạn cần thiết lập WALLET_ADDRESS, RPC_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID!")
+if (WALLET_ADDRESS is None or RPC_URL is None or TELEGRAM_BOT_TOKEN is None or 
+    TELEGRAM_CHAT_ID_FID is None or TELEGRAM_CHAT_ID_BANKR is None):
+    logging.error("Bạn cần thiết lập WALLET_ADDRESS, RPC_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID_FID, TELEGRAM_CHAT_ID_BANKR!")
     exit(1)
 
 MAX_RPC_FAILS = 10
 rpc_fail_count = 0
 
-########################
-# Hàm gửi thông báo Telegram
-########################
-def send_telegram_message(message: str):
+########################################
+# Hàm gửi thông báo Telegram đến kênh cụ thể
+########################################
+def send_telegram_message_to(chat_id: str, message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": chat_id,
         "text": message,
-        "parse_mode": "Markdown"  # Sử dụng Markdown để tạo liên kết và code block
+        "parse_mode": "Markdown"  # Sử dụng Markdown để tạo liên kết, code block,...
     }
     try:
         resp = requests.post(url, data=payload, timeout=5)
         resp.raise_for_status()
-        logging.info("Đã gửi thông báo Telegram thành công.")
+        logging.info(f"Đã gửi thông báo Telegram đến {chat_id} thành công.")
     except Exception as e:
-        logging.error(f"Lỗi khi gửi thông báo Telegram: {e}")
+        logging.error(f"Lỗi khi gửi thông báo Telegram đến {chat_id}: {e}")
 
-########################
+########################################
 # ABI cho hàm deployToken (để decode input data)
-########################
+########################################
 deployToken_abi = [
     {
         "name": "deployToken",
@@ -90,9 +91,9 @@ def decode_input_data_abi(input_hex):
         logging.error(f"Decode input data error: {e}")
         return None
 
-########################
+########################################
 # Lấy giao dịch mới nhất từ Basescan
-########################
+########################################
 def get_latest_transaction():
     url = "https://api.basescan.org/api"
     params = {
@@ -116,9 +117,9 @@ def get_latest_transaction():
         logging.error(f"Lỗi khi lấy giao dịch: {e}")
     return None
 
-########################
+########################################
 # Lấy thông tin ERC-20 Transfer
-########################
+########################################
 transfer_event_abi = {
     "anonymous": False,
     "inputs": [
@@ -152,9 +153,9 @@ def get_erc20_transfer(tx_hash, rpc_url):
                 logging.error(f"Decode log Transfer error: {e}")
     return None
 
-########################
+########################################
 # Lấy tên token ERC-20
-########################
+########################################
 erc20_abi = [
     {
         "constant": True,
@@ -181,13 +182,14 @@ def get_token_name(token_address, rpc_url):
             exit(1)
         return None
 
-########################
+########################################
 # Main loop
-########################
+########################################
 def main():
-    # Gửi tin nhắn Telegram thông báo khởi chạy
+    # Gửi tin nhắn Telegram thông báo khởi chạy đến cả hai kênh
     start_message = f"[Railway Start]\nỨng dụng đã khởi chạy tại: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    send_telegram_message(start_message)
+    send_telegram_message_to(TELEGRAM_CHAT_ID_FID, start_message)
+    send_telegram_message_to(TELEGRAM_CHAT_ID_BANKR, start_message)
     
     last_tx_hash = None
     while True:
@@ -202,29 +204,28 @@ def main():
                 preSaleConfig = None
                 if input_data_hex and input_data_hex != "0x":
                     preSaleConfig = decode_input_data_abi(input_data_hex)
-                # Kiểm tra nếu trường fid == 1668 (chuyển đổi sang int nếu cần)
-                process_tx = False
-                if preSaleConfig and "fid" in preSaleConfig:
+                
+                # Kiểm tra điều kiện:
+                process_fid = False
+                process_bankr = False
+                if preSaleConfig:
                     try:
-                        # So sánh với 1668 dưới dạng số nguyên
-                        if int(preSaleConfig["fid"]) == 1668:
-                            process_tx = True
+                        if int(preSaleConfig.get("fid", 0)) == 1668:
+                            process_fid = True
                     except Exception as e:
                         logging.error(f"Lỗi khi so sánh fid: {e}")
+                    if preSaleConfig.get("castHash", "").lower() == "bnkr deployer":
+                        process_bankr = True
                 
-                if process_tx:
+                if process_fid or process_bankr:
                     token_contract = get_erc20_transfer(current_hash, RPC_URL)
                     token_name = None
                     if token_contract:
                         token_name = get_token_name(token_contract, RPC_URL)
                     
-                    # Tạo liên kết cho Tx hash: liên kết đến Basescan
                     tx_link = f"[Tx hash](https://basescan.org/tx/{current_hash})"
-                    
-                    # Dùng backticks để người dùng có thể copy contract
                     contract_text = f"`{token_contract}`" if token_contract else "`Không tìm thấy`"
                     
-                    # Tạo dòng liên kết: TokenTx | Chart | X | Buy on Matcha
                     token_links = ""
                     if token_contract:
                         token_links = (
@@ -233,8 +234,6 @@ def main():
                             f"[X](https://x.com/search?q={token_contract}) | "
                             f"[Buy on Matcha](https://matcha.xyz/tokens/base/eth/select?buyChain=8453&buyAddress={token_contract}&sellAmount=0.1)"
                         )
-                    
-                    # Tạo dòng liên kết: Buy on Sigma | Buy on Banana
                     sigma_banana_line = ""
                     if token_contract:
                         sigma_banana_line = (
@@ -245,7 +244,8 @@ def main():
                     log_message = (
                         "==========================================\n"
                         f"{tx_link}\n"
-                        f"castHash: {preSaleConfig['castHash']}\n"
+                        f"fid: {preSaleConfig.get('fid')}\n"
+                        f"castHash: {preSaleConfig.get('castHash')}\n"
                         f"Erc20 Contract: {contract_text}\n"
                         f"Ticket: {token_name if token_name else 'Không lấy được tên'}\n"
                         f"{token_links}\n"
@@ -253,10 +253,13 @@ def main():
                     )
                     logging.info(log_message)
                     
-                    # Gửi thông báo Telegram
-                    send_telegram_message(f"[DEPLOYMENT]\n{log_message}")
+                    # Gửi thông báo riêng theo từng nhánh
+                    if process_fid:
+                        send_telegram_message_to(TELEGRAM_CHAT_ID_FID, f"[FID 1668]\n{log_message}")
+                    if process_bankr:
+                        send_telegram_message_to(TELEGRAM_CHAT_ID_BANKR, f"[BNKR DEPLOYER]\n{log_message}")
                 else:
-                    logging.info("Giao dịch không có fid = 1668, bỏ qua.")
+                    logging.info("Giao dịch không thỏa mãn điều kiện (không có fid=1668 và castHash không bằng 'bnkr deployer'), bỏ qua.")
                 
                 last_tx_hash = current_hash
             else:
