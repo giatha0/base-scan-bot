@@ -216,7 +216,7 @@ def main():
                 if input_data_hex and input_data_hex != "0x":
                     preSaleConfig = decode_input_data_abi(input_data_hex)
                 
-                # Kiểm tra 2 điều kiện:
+                # Kiểm tra điều kiện:
                 process_fid = False
                 process_bankr = False
                 if preSaleConfig:
@@ -252,11 +252,16 @@ def main():
                             f"[Buy on Banana](https://t.me/BananaGunSniper_bot?start=snp_jackyt_{token_contract})"
                         )
                     
+                    # Tạo dòng liên kết tìm kiếm trên X dựa trên token name (nếu có)
+                    search_token_on_x = ""
+                    if token_name:
+                        search_token_on_x = f"[Search token on X](https://x.com/search?q={token_name})"
+                    
                     # Hiển thị chi tiết token trong Ticket: name và symbol
                     if token_name and token_symbol:
                         ticket_text = f"{token_name} ({token_symbol})"
                     else:
-                        ticket_text = "Không lấy được tên token"
+                        ticket_text = "Không lấy được chi tiết token"
                     
                     log_message = (
                         "==========================================\n"
@@ -266,7 +271,8 @@ def main():
                         f"Erc20 Contract: {contract_text}\n"
                         f"Ticket: {ticket_text}\n"
                         f"{token_links}\n"
-                        f"{sigma_banana_line}"
+                        f"{sigma_banana_line}\n"
+                        f"{search_token_on_x}"
                     )
                     logging.info(log_message)
                     
