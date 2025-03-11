@@ -214,7 +214,7 @@ def main():
                             process_fid = True
                     except Exception as e:
                         logging.error(f"Lỗi khi so sánh fid: {e}")
-                    if preSaleConfig.get("castHash", "").lower() == "bnkr deployer":
+                    if preSaleConfig.get("castHash", "").lower() == "bankr deployment":
                         process_bankr = True
                 
                 if process_fid or process_bankr:
@@ -259,7 +259,7 @@ def main():
                     if process_bankr:
                         send_telegram_message_to(TELEGRAM_CHAT_ID_BANKR, f"[BNKR DEPLOYER]\n{log_message}")
                 else:
-                    logging.info("Giao dịch không thỏa mãn điều kiện (không có fid=1668 và castHash không bằng 'bnkr deployer'), bỏ qua.")
+                    logging.info("Giao dịch không thỏa mãn điều kiện (không có fid=1668 và castHash không bằng 'bankr deployment'), bỏ qua.")
                 
                 last_tx_hash = current_hash
             else:
