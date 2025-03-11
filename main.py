@@ -16,11 +16,17 @@ RPC_URL = os.environ.get("RPC_URL")  # Ví dụ: https://base-mainnet.g.alchemy.
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID_FID = os.environ.get("TELEGRAM_CHAT_ID_FID")
 TELEGRAM_CHAT_ID_BANKR = os.environ.get("TELEGRAM_CHAT_ID_BANKR")
+PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
+ZEROX_API_KEY = os.environ.get("ZEROX_API_KEY")
 
 if (WALLET_ADDRESS is None or RPC_URL is None or TELEGRAM_BOT_TOKEN is None or 
-    TELEGRAM_CHAT_ID_FID is None or TELEGRAM_CHAT_ID_BANKR is None):
-    logging.error("Bạn cần thiết lập WALLET_ADDRESS, RPC_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID_FID, TELEGRAM_CHAT_ID_BANKR!")
+    TELEGRAM_CHAT_ID_FID is None or TELEGRAM_CHAT_ID_BANKR is None or 
+    PRIVATE_KEY is None or ZEROX_API_KEY is None):
+    logging.error("Bạn cần thiết lập WALLET_ADDRESS, RPC_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID_FID, TELEGRAM_CHAT_ID_BANKR, PRIVATE_KEY, ZEROX_API_KEY!")
     exit(1)
+
+# Số lượng ETH bán (ví dụ: 0.01 ETH = 1e16 wei)
+SELL_AMOUNT = 10000000000000000
 
 MAX_RPC_FAILS = 10
 rpc_fail_count = 0
@@ -154,7 +160,7 @@ def get_erc20_transfer(tx_hash, rpc_url):
     return None
 
 ########################################
-# Lấy tên token ERC-20
+# Lấy tên và ký hiệu token ERC-20
 ########################################
 erc20_abi = [
     {
@@ -165,29 +171,40 @@ erc20_abi = [
         "payable": False,
         "stateMutability": "view",
         "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "symbol",
+        "outputs": [{"name": "", "type": "string"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
     }
 ]
 
-def get_token_name(token_address, rpc_url):
+def get_token_details(token_address, rpc_url):
     global rpc_fail_count
     w3_rpc = Web3(Web3.HTTPProvider(rpc_url))
     try:
         token_contract = w3_rpc.eth.contract(address=token_address, abi=erc20_abi)
-        return token_contract.functions.name().call()
+        token_name = token_contract.functions.name().call()
+        token_symbol = token_contract.functions.symbol().call()
+        return token_name, token_symbol
     except Exception as e:
         rpc_fail_count += 1
-        logging.error(f"Lỗi khi lấy tên token (lần {rpc_fail_count}): {e}")
+        logging.error(f"Lỗi khi lấy chi tiết token (lần {rpc_fail_count}): {e}")
         if rpc_fail_count >= MAX_RPC_FAILS:
             logging.error("RPC_URL lỗi quá nhiều lần. Dừng chương trình.")
             exit(1)
-        return None
+        return None, None
 
 ########################################
 # Main loop
 ########################################
 def main():
-    # Gửi tin nhắn Telegram thông báo khởi chạy đến cả hai kênh
-    start_message = f"[Railway Start]\nThe application has launched: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    # Gửi tin nhắn Telegram thông báo khởi chạy đến cả 2 kênh
+    start_message = f"[Railway Start]\nỨng dụng đã khởi chạy tại: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     send_telegram_message_to(TELEGRAM_CHAT_ID_FID, start_message)
     send_telegram_message_to(TELEGRAM_CHAT_ID_BANKR, start_message)
     
@@ -205,7 +222,7 @@ def main():
                 if input_data_hex and input_data_hex != "0x":
                     preSaleConfig = decode_input_data_abi(input_data_hex)
                 
-                # Kiểm tra điều kiện:
+                # Kiểm tra 2 điều kiện riêng:
                 process_fid = False
                 process_bankr = False
                 if preSaleConfig:
@@ -219,9 +236,9 @@ def main():
                 
                 if process_fid or process_bankr:
                     token_contract = get_erc20_transfer(current_hash, RPC_URL)
-                    token_name = None
+                    token_name, token_symbol = (None, None)
                     if token_contract:
-                        token_name = get_token_name(token_contract, RPC_URL)
+                        token_name, token_symbol = get_token_details(token_contract, RPC_URL)
                     
                     tx_link = f"[Tx hash](https://basescan.org/tx/{current_hash})"
                     contract_text = f"`{token_contract}`" if token_contract else "`Không tìm thấy`"
@@ -231,7 +248,7 @@ def main():
                         token_links = (
                             f"[TokenTx](https://basescan.org/token/{token_contract}) | "
                             f"[Chart](https://dexscreener.com/base/{token_contract}) | "
-                            f"[XXXXXX](https://x.com/search?q={token_contract}) | "
+                            f"[X](https://x.com/search?q={token_contract}) | "
                             f"[Buy on Matcha](https://matcha.xyz/tokens/base/eth/select?buyChain=8453&buyAddress={token_contract}&sellAmount=0.1)"
                         )
                     sigma_banana_line = ""
@@ -241,19 +258,24 @@ def main():
                             f"[Buy on Banana](https://t.me/BananaGunSniper_bot?start=snp_jackyt_{token_contract})"
                         )
                     
+                    # Hiển thị tên và ký hiệu token trong "Ticket"
+                    if token_name and token_symbol:
+                        ticket_text = f"{token_name} ({token_symbol})"
+                    else:
+                        ticket_text = "Không lấy được tên token"
+                    
                     log_message = (
                         "==========================================\n"
                         f"{tx_link}\n"
                         f"fid: {preSaleConfig.get('fid')}\n"
                         f"castHash: {preSaleConfig.get('castHash')}\n"
                         f"Erc20 Contract: {contract_text}\n"
-                        f"Ticket: {token_name if token_name else 'Không lấy được tên'}\n"
+                        f"Ticket: {ticket_text}\n"
                         f"{token_links}\n"
                         f"{sigma_banana_line}"
                     )
                     logging.info(log_message)
                     
-                    # Gửi thông báo riêng theo từng nhánh
                     if process_fid:
                         send_telegram_message_to(TELEGRAM_CHAT_ID_FID, f"[FID 1668]\n{log_message}")
                     if process_bankr:
