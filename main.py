@@ -187,7 +187,7 @@ def get_token_name(token_address, rpc_url):
 ########################################
 def main():
     # Gửi tin nhắn Telegram thông báo khởi chạy đến cả hai kênh
-    start_message = f"[Railway Start]\nỨng dụng đã khởi chạy tại: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    start_message = f"[Railway Start]\nThe application has launched: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     send_telegram_message_to(TELEGRAM_CHAT_ID_FID, start_message)
     send_telegram_message_to(TELEGRAM_CHAT_ID_BANKR, start_message)
     
