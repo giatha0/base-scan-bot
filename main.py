@@ -197,7 +197,7 @@ def get_token_details(token_address, rpc_url):
 # Main loop
 ########################################
 def main():
-    # Gửi tin nhắn Telegram thông báo khởi chạy đến cả hai kênh
+    # Gửi tin nhắn Telegram thông báo khởi chạy đến cả 2 kênh
     start_message = f"[Railway Start]\nỨng dụng đã khởi chạy tại: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     send_telegram_message_to(TELEGRAM_CHAT_ID_FID, start_message)
     send_telegram_message_to(TELEGRAM_CHAT_ID_BANKR, start_message)
@@ -242,7 +242,7 @@ def main():
                         token_links = (
                             f"[TokenTx](https://basescan.org/token/{token_contract}) | "
                             f"[Chart](https://dexscreener.com/base/{token_contract}) | "
-                            f"[XXX](https://x.com/search?q={token_contract}) | "
+                            f"[X](https://x.com/search?q={token_contract}) | "
                             f"[Buy on Matcha](https://matcha.xyz/tokens/base/eth/select?buyChain=8453&buyAddress={token_contract}&sellAmount=0.1)"
                         )
                     sigma_banana_line = ""
@@ -252,16 +252,16 @@ def main():
                             f"[Buy on Banana](https://t.me/BananaGunSniper_bot?start=snp_jackyt_{token_contract})"
                         )
                     
-                    # Tạo dòng liên kết tìm kiếm trên X dựa trên token name (nếu có)
-                    search_token_on_x = ""
-                    if token_name:
-                        search_token_on_x = f"[Search token on X](https://x.com/search?q={token_name})"
-                    
                     # Hiển thị chi tiết token trong Ticket: name và symbol
                     if token_name and token_symbol:
                         ticket_text = f"{token_name} ({token_symbol})"
                     else:
                         ticket_text = "Không lấy được chi tiết token"
+                    
+                    # Tạo dòng liên kết tìm kiếm trên X dựa trên token symbol (với filter live)
+                    search_token_on_x = ""
+                    if token_symbol:
+                        search_token_on_x = f"[Search token on X](https://x.com/search?q={token_symbol}&f=live)"
                     
                     log_message = (
                         "==========================================\n"
