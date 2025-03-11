@@ -16,17 +16,11 @@ RPC_URL = os.environ.get("RPC_URL")  # Ví dụ: https://base-mainnet.g.alchemy.
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID_FID = os.environ.get("TELEGRAM_CHAT_ID_FID")
 TELEGRAM_CHAT_ID_BANKR = os.environ.get("TELEGRAM_CHAT_ID_BANKR")
-PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
-ZEROX_API_KEY = os.environ.get("ZEROX_API_KEY")
 
 if (WALLET_ADDRESS is None or RPC_URL is None or TELEGRAM_BOT_TOKEN is None or 
-    TELEGRAM_CHAT_ID_FID is None or TELEGRAM_CHAT_ID_BANKR is None or 
-    PRIVATE_KEY is None or ZEROX_API_KEY is None):
-    logging.error("Bạn cần thiết lập WALLET_ADDRESS, RPC_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID_FID, TELEGRAM_CHAT_ID_BANKR, PRIVATE_KEY, ZEROX_API_KEY!")
+    TELEGRAM_CHAT_ID_FID is None or TELEGRAM_CHAT_ID_BANKR is None):
+    logging.error("Bạn cần thiết lập WALLET_ADDRESS, RPC_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID_FID, TELEGRAM_CHAT_ID_BANKR!")
     exit(1)
-
-# Số lượng ETH bán (ví dụ: 0.01 ETH = 1e16 wei)
-SELL_AMOUNT = 10000000000000000
 
 MAX_RPC_FAILS = 10
 rpc_fail_count = 0
@@ -160,7 +154,7 @@ def get_erc20_transfer(tx_hash, rpc_url):
     return None
 
 ########################################
-# Lấy tên và ký hiệu token ERC-20
+# Lấy chi tiết token ERC-20 (name và symbol)
 ########################################
 erc20_abi = [
     {
@@ -203,7 +197,7 @@ def get_token_details(token_address, rpc_url):
 # Main loop
 ########################################
 def main():
-    # Gửi tin nhắn Telegram thông báo khởi chạy đến cả 2 kênh
+    # Gửi tin nhắn Telegram thông báo khởi chạy đến cả hai kênh
     start_message = f"[Railway Start]\nỨng dụng đã khởi chạy tại: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     send_telegram_message_to(TELEGRAM_CHAT_ID_FID, start_message)
     send_telegram_message_to(TELEGRAM_CHAT_ID_BANKR, start_message)
@@ -222,7 +216,7 @@ def main():
                 if input_data_hex and input_data_hex != "0x":
                     preSaleConfig = decode_input_data_abi(input_data_hex)
                 
-                # Kiểm tra 2 điều kiện riêng:
+                # Kiểm tra 2 điều kiện:
                 process_fid = False
                 process_bankr = False
                 if preSaleConfig:
@@ -258,7 +252,7 @@ def main():
                             f"[Buy on Banana](https://t.me/BananaGunSniper_bot?start=snp_jackyt_{token_contract})"
                         )
                     
-                    # Hiển thị tên và ký hiệu token trong "Ticket"
+                    # Hiển thị chi tiết token trong Ticket: name và symbol
                     if token_name and token_symbol:
                         ticket_text = f"{token_name} ({token_symbol})"
                     else:
